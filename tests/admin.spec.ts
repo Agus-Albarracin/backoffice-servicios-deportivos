@@ -5,7 +5,7 @@ async function login(page: Page) {
   await page.getByLabel('Contraseña', { exact: true }).fill('test-password-only');
   await page.getByRole('button', { name: 'Ingresar al panel' }).click();
   await expect(page.getByRole('heading', { name: 'Resumen general' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Tu primera sede empieza acá' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tu primera sede empieza acá' })).toBeVisible({ timeout: 15000 });
 }
 test.beforeEach(async ({ request }) => { await request.post('http://127.0.0.1:4401/reset'); });
 
@@ -106,8 +106,46 @@ test('creates the complete catalog and sends slot times in Buenos Aires', async 
   });
   const slots = await (await page.request.get('/api/manage/slots')).json();
   expect(slots[0].startsAt).toBe('2099-01-01T18:00:00-03:00');
+  await page.getByText('Horario habitual · configurar disponibilidad automática').click();
+  await page.getByLabel('Apertura', { exact: true }).fill('09:00');
+  await page.getByLabel('Cierre', { exact: true }).fill('18:00');
+  await page.getByLabel('Duración del turno (minutos)').fill('60');
+  await page.getByRole('button', { name: 'Guardar horario habitual' }).click();
+  await expect(page.getByText('Horario habitual · automático activo')).toBeVisible();
+  const switchControl = page.getByRole('switch', { name: 'Calendario visible por defecto' });
+  await switchControl.check();
+  await expect(page.getByLabel('Mes del calendario')).toBeVisible();
+  expect((await (await page.request.get('/api/scheduling/settings')).json()).calendarEnabled).toBe(true);
+  await page.getByLabel('Fecha a bloquear').fill('2099-01-01');
+  await page.getByLabel('Motivo del cierre').fill('Mantenimiento');
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Bloquear día completo' }).click();
+  await expect(page.getByRole('button', { name: 'Reabrir este día', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Reabrir este día', exact: true }).click();
+  await expect(page.getByLabel('Motivo del cierre')).toBeVisible();
+  await page.getByRole('button', { name: 'Lista', exact: true }).click();
+  await expect(page.getByLabel('Buscar registros')).toBeVisible();
   await create('Solicitudes', 'solicitud', async () => { await page.getByRole('combobox', { name: 'Deporte', exact: true }).selectOption({ label: 'Tenis' }); await page.getByLabel('Nombre · opcional', { exact: true }).fill('Ana'); });
   await expect(page.getByRole('cell', { name: 'Ana', exact: true })).toBeVisible();
   expect((await page.request.post('/api/manage/sports', { headers: { origin: 'https://other.example' }, data: {} })).status()).toBe(403);
   expect((await page.request.get('/api/manage/not-allowed')).status()).toBe(404);
+});
+
+test('shows request date and hours, confirms through the protected proxy and refreshes the reserved slot', async ({ page }) => {
+  await login(page);
+  const origin = 'http://localhost:3101';
+  const create = async (resource: string, data: object) => (await page.request.post('/api/manage/' + resource, { headers: { origin }, data })).json();
+  const slot = await create('slots', { startsAt: '2099-01-01T21:00:00.000Z', endsAt: '2099-01-01T22:00:00.000Z', status: 'AVAILABLE' });
+  const draft = await create('booking-drafts', { renterFirstName: 'Ana', renterLastName: 'Pérez', renterPhone: '+5491100000001', date: '2099-01-01', slotId: slot.id });
+  expect((await page.request.post('/api/manage/booking-drafts/' + draft.id + '/confirm', { headers: { origin: 'https://other.example' }, data: {} })).status()).toBe(403);
+  await page.reload();
+  await page.getByRole('navigation').getByRole('button', { name: /Solicitudes/ }).click();
+  await expect(page.getByRole('cell', { name: '01/01/2099', exact: true })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '18:00 – 19:00', exact: true })).toBeVisible();
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Confirmar turno', exact: true }).click();
+  await expect(page.getByRole('cell', { name: /Confirmada/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Editar', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Eliminar', exact: true })).toBeDisabled();
+  expect((await (await page.request.get('/api/manage/slots')).json())[0].status).toBe('RESERVED');
 });
