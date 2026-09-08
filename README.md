@@ -1,5 +1,40 @@
 # Backoffice del turnero
 
+## Calendario y horarios automáticos
+
+En **Turnos**, el switch **Calendario visible por defecto** guarda en la API la
+vista inicial de client y backoffice. Los botones Lista/Calendario permiten
+alternar sin cambiar la preferencia compartida. El client consulta esa preferencia
+al entrar a disponibilidad; no requiere editar código ni desplegar otra vez.
+
+Elegir sede y deporte, abrir **Horario habitual**, completar días, apertura,
+cierre, duración y anticipación máxima, y guardar. La API calcula los turnos
+automáticamente dentro de una ventana móvil, sin cargarlos uno por uno. La
+anticipación admite 1–365 días. Los horarios/duración reales los define el
+administrador; no se activan reglas de ejemplo sobre los datos existentes.
+
+En **Días no disponibles**, bloquear una fecha cierra todos los deportes de esa
+sede. Puede reabrirse desde el mismo panel. Se conservan las solicitudes y los
+bloqueos individuales de turnos; bloquear no envía mensajes de cancelación.
+El backend revalida también los borradores y el enlace de WhatsApp.
+
+Se utiliza **@daypicker/react 10.0.1 (MIT)** en ambos frontends. Investigación:
+[informe de calendarios](docs/informe-calendarios.pdf). Una franja habitual por
+sede/deporte, dentro del mismo día; no incluye una agenda semanal por horas,
+capacidad por cancha ni cambios masivos de reservas confirmadas.
+
+Requiere la nueva migración `server/migrations/002_scheduling.sql`. En otro entorno,
+hacer backup, ejecutar `npm run db:migrate` desde `server/` y reiniciar la API.
+No modificar la migración inicial. La vista inicial sigue en lista hasta activar
+el switch. Los turnos manuales existentes siguen funcionando.
+
+Los GET `/scheduling/month` son de solo lectura. `/slots` materializa únicamente
+los turnos del día consultado dentro de una transacción, con UUID estables e
+idempotencia. No crea reservas ni consume disponibilidad. La tabla clásica y los
+contadores muestran registros materializados; el calendario también anticipa
+horarios futuros aún no materializados. Para grandes volúmenes, implementar
+paginación y optimizar consultas antes de escalar.
+
 Panel Next.js independiente del frontend público en `client/`. Permite ingresar
 como administrador y crear, editar, buscar, filtrar y eliminar deportes, zonas,
 sedes, relaciones sede/deporte, turnos y borradores de solicitudes mediante NestJS.
@@ -84,3 +119,8 @@ relaciones y horarios. No toca MySQL. Requiere Chromium de Playwright instalado
 En `server/`, `npm run test:e2e` verifica el contrato HTTP real con repositorio en
 memoria, incluidos guard, registros inactivos, turnos bloqueados y Swagger de los
 seis nuevos endpoints. `npm test` y `npm run lint` completan los controles del backend.
+## Confirmación de solicitudes
+
+En **Solicitudes** se muestran fecha, horario de inicio y fin en Buenos Aires y estado. **Confirmar turno** requiere contacto y horario elegidos; la API vuelve a validar disponibilidad y reserva el turno. Una solicitud confirmada no se puede editar ni eliminar. Generar WhatsApp conserva el estado pendiente.
+
+La API requiere la migración `003_reservations.sql`. El client muestra los horarios reservados en ámbar, sin permitir seleccionarlos. Los cierres de días no cancelan reservas confirmadas.

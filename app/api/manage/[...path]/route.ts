@@ -8,6 +8,11 @@ async function handle(request: Request, context: { params: Promise<{ path: strin
   if (!(await getSession())) return error('La sesión venció. Volvé a ingresar.', 401);
   if (request.method !== 'GET' && !sameOrigin(request)) return error('Origen no permitido.', 403);
   const { path } = await context.params;
+  if (path.length === 3 && path[0] === 'booking-drafts' && uuid.test(path[1]) && path[2] === 'confirm') {
+    if (request.method !== 'POST') return error('Operación inválida.', 405);
+    try { return await managementResponse(await upstream(path.join('/'), { method: 'POST' }), false); }
+    catch { return error('No se pudo conectar con la API.', 503); }
+  }
   if (!resources.has(path[0]) || path.length > 2 || (path[1] && !uuid.test(path[1]))) return error('Recurso inválido.', 404);
   if ((['PATCH', 'DELETE'].includes(request.method) && path.length !== 2) || (request.method === 'POST' && path.length !== 1)) return error('Operación inválida.', 405);
   const route = request.method === 'GET' && path.length === 1 ? `management/${path[0]}` : path.join('/');
