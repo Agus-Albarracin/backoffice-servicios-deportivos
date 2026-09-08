@@ -110,8 +110,10 @@ test('creates the complete catalog and sends slot times in Buenos Aires', async 
   await page.getByLabel('Apertura', { exact: true }).fill('09:00');
   await page.getByLabel('Cierre', { exact: true }).fill('18:00');
   await page.getByLabel('Duración del turno (minutos)').fill('60');
+  await page.getByLabel('Cantidad de días a cubrir', { exact: true }).fill('45');
   await page.getByRole('button', { name: 'Guardar horario habitual' }).click();
   await expect(page.getByText('Horario habitual · automático activo')).toBeVisible();
+  expect((await (await page.request.get('/api/scheduling/schedules')).json())[0].horizonDays).toBe(45);
   const switchControl = page.getByRole('switch', { name: 'Calendario visible por defecto' });
   await switchControl.check();
   await expect(page.getByLabel('Mes del calendario')).toBeVisible();
