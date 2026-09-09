@@ -76,7 +76,7 @@ dependencias; no copiar los controllers dentro de la aplicación Next.js.
   guardados; el formulario informa esa restricción. Cambios de selección pueden
   invalidar sede/turno conforme a la API.
 - El servidor rechaza eliminaciones con dependencias. No hay borrado en cascada.
-- Los borradores no son reservas confirmadas; este panel no confirma ni envía mensajes.
+- Los borradores quedan pendientes hasta usar Confirmar turno en el panel. La API reserva el horario; el panel no envía mensajes automáticamente.
 
 ## Acceso y despliegue
 
