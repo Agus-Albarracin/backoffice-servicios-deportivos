@@ -112,3 +112,25 @@ escritura antes de informar que un ítem fue creado o actualizado.
 Si no hay acceso al Project o no se conoce su destino, entregar los textos
 listos para copiar y continuar con la implementación autorizada. Nunca afirmar
 que los ítems están en GitHub cuando solo se prepararon en la conversación.
+
+## Entrega obligatoria para push manual
+
+El usuario realiza los pushes manualmente. Al terminar de preparar commits:
+
+1. Informar repositorio, rama, base, hashes y títulos exactos de los commits
+   propios; distinguir dependencias heredadas y trabajo pendiente.
+2. Entregar comandos PowerShell listos para copiar, indicando el directorio
+   inicial y usando `git -C <repositorio> push -u origin <rama>` con nombres
+   verificados. No exigir checkout para publicar una rama local explícita.
+3. Numerar el orden: primero las ramas requisito, después sus dependientes.
+   Para ramas independientes aclarar que su orden es intercambiable. Separar
+   pushes pendientes de comandos opcionales para ramas ya sincronizadas.
+4. Indicar destino y orden de los PR por separado: publicar no equivale a
+   integrar. No agregar comandos de merge, force-push o push de todas las ramas.
+5. Verificar el estado local y el seguimiento remoto; si no hubo fetch,
+   aclarar que la comparación usa referencias remotas guardadas localmente.
+   Si Git rechaza un push, inspeccionar el motivo antes de proponer reintentos.
+
+Entregar estos comandos no autoriza ejecutarlos. Mientras el usuario mantenga
+el modo manual, no pedir confirmación para ejecutar el push: dejarle los pasos.
+Solo ejecutar un push si posteriormente solicita expresamente que lo hagamos.
