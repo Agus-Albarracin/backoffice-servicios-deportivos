@@ -1,10 +1,12 @@
 import { cookies } from 'next/headers';
-import { allowAttempt, configured, cookieName, createSession, getSession, revokeSession, sameOrigin, sessionSeconds, verifyPassword } from '@/lib/auth';
+import { allowAttempt, cookieName, createSession, getSession, revokeSession, sameOrigin, sessionSeconds, verifyPassword } from '@/lib/auth';
+import { configurationIssues } from '@/lib/auth-config';
 import { error } from '@/lib/api';
 export const runtime = 'nodejs';
 export async function POST(request: Request) {
   if (!sameOrigin(request)) return error('Origen no permitido.', 403);
-  if (!configured()) return error('El acceso administrativo todavía no está configurado. Ejecutá npm run setup en backoffice.', 503);
+  const issues = configurationIssues();
+  if (issues.length) return error(`Configuración administrativa incompleta: ${issues.join('; ')}. Revisá las variables del backoffice en Production y volvé a desplegar.`, 503);
   if (!allowAttempt()) return error('Demasiados intentos. Esperá un minuto.', 429);
   const raw = await request.text();
   if (raw.length > 4096) return error('Solicitud demasiado grande.', 413);

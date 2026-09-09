@@ -1,6 +1,7 @@
 import 'server-only';
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { cookies } from 'next/headers';
+import { configurationIssues } from './auth-config';
 
 export const cookieName = 'turnero_admin';
 export const sessionSeconds = 8 * 60 * 60;
@@ -17,7 +18,7 @@ function secret() {
   return value;
 }
 export function configured() {
-  return Boolean(process.env.ADMIN_USERNAME && /^[a-f0-9]{32}:[a-f0-9]{128}$/.test(process.env.ADMIN_PASSWORD_HASH ?? '') && (process.env.SESSION_SECRET?.length ?? 0) >= 32 && process.env.MANAGEMENT_API_KEY);
+  return configurationIssues().length === 0;
 }
 export function verifyPassword(username: string, password: string) {
   if (!configured()) return false;
