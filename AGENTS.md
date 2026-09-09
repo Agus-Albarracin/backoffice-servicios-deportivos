@@ -62,3 +62,12 @@ Preferencia permanente y explícita del usuario para este flujo de trabajo:
 - Al separar trabajo anterior, conservar los originales y verificar que todos
   los cambios quedan representados. No reescribir ni eliminar ramas publicadas
   como consecuencia automática de esta regla.
+
+## Push manual
+
+El usuario ejecuta los pushes. Después de preparar commits, entregar siempre
+los comandos PowerShell exactos en orden de dependencias, con repositorio,
+rama, base, hashes, títulos y destino de PR. Distinguir ramas pendientes de
+las sincronizadas y explicar si el remoto solo se comparó con referencias
+locales. No ejecutar push ni pedir permiso para hacerlo mientras siga vigente
+este modo manual. Ver `references/project-items.md` de las skills de Git.
