@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "playwright test",
+    "test:sessions": "npm run build && node tests/session-instances.mjs",
     "setup": "node scripts/setup.mjs"
   },
   "dependencies": {
