@@ -4,17 +4,32 @@ import { randomUUID } from 'node:crypto';
 const resources = ['sports', 'zones', 'venues', 'venue-sports', 'slots', 'booking-drafts'];
 let database = Object.fromEntries(resources.map(key => [key, []]));
 let outdated = false;
+let sessionsUnavailable = false;
 let calendarSettings = { calendarEnabled: false };
 let schedules = [];
 let blockedDays = [];
+const sessions = new Map();
 createServer(async (request, response) => {
   response.setHeader('Content-Type', 'application/json');
   if (request.url === '/reset') { outdated = false; calendarSettings = { calendarEnabled: false }; schedules = []; blockedDays = []; database = Object.fromEntries(resources.map(key => [key, []])); response.end('{}'); return; }
   if (request.url === '/simulate-outdated') { outdated = true; response.end('{}'); return; }
+  if (request.url === '/simulate-sessions-unavailable') { sessionsUnavailable = true; response.end('{}'); return; }
   if (request.url === '/health') { response.end('{}'); return; }
   if (request.headers['x-api-key'] !== 'fixture-management-key') { response.writeHead(401); response.end('{"message":"Missing management key"}'); return; }
-  if (outdated && request.url.startsWith('/api/management/')) { response.writeHead(404, { 'Content-Type': 'text/html' }); response.end('<html>Cannot GET administrative list</html>'); return; }
+  if (outdated && request.url.startsWith('/api/management/') && !request.url.startsWith('/api/management/sessions')) { response.writeHead(404, { 'Content-Type': 'text/html' }); response.end('<html>Cannot GET administrative list</html>'); return; }
   const url = new URL(request.url, 'http://127.0.0.1');
+  if (url.pathname.startsWith('/api/management/sessions')) {
+    if (sessionsUnavailable) { response.writeHead(503); response.end('{}'); return; }
+    let raw = ''; for await (const chunk of request) raw += chunk;
+    const body = JSON.parse(raw || '{}');
+    const action = url.pathname.split('/')[4];
+    response.setHeader('Cache-Control', 'no-store');
+    if (!action) { const session = { username: body.username, expiresAt: Date.now() + 8 * 60 * 60 * 1000 }; sessions.set(body.tokenHash, session); response.writeHead(201); response.end(JSON.stringify(session)); return; }
+    if (action === 'revoke') { sessions.delete(body.tokenHash); response.writeHead(204); response.end(); return; }
+    const session = sessions.get(body.tokenHash);
+    if (!session || session.expiresAt <= Date.now()) { response.writeHead(404); response.end('{}'); return; }
+    response.end(JSON.stringify(session)); return;
+  }
   if (url.pathname.startsWith('/api/scheduling/')) {
     let raw = ''; for await (const chunk of request) raw += chunk;
     const body = raw ? JSON.parse(raw) : {};

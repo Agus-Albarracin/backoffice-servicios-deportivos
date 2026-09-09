@@ -59,3 +59,14 @@ Calendario, disponibilidad y datos administrativos sensibles usan `Cache-Control
 - Backoffice: `npm run lint`, `npm run typecheck`, `npm test`.
 
 Las pruebas usan fixtures o memoria; no demuestran despliegue ni conectividad de producción. Swagger tiene 48 operaciones documentadas. Revisar DTOs y servicios al cambiar contratos.
+
+## Sesiones administrativas persistentes
+
+Backoffice valida las credenciales y conserva una cookie opaca firmada. Server
+persiste en MySQL el hash SHA-256 del identificador, usuario y vencimiento de
+ocho horas mediante `004_admin_sessions.sql`. Los POST privados
+`/api/management/sessions`, `/lookup` y `/revoke` requieren X-API-Key y no-store.
+Las sesiones se verifican y revocan entre instancias; ningún cliente accede
+directamente a MySQL. Publicar y migrar server antes de publicar backoffice.
+La indisponibilidad de sesiones no concede acceso. El límite de intentos de
+login de backoffice sigue siendo local a cada proceso y no global.

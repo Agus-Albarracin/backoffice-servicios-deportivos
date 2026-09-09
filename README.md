@@ -91,11 +91,29 @@ Escrituras y login verifican Origin contra `APP_ORIGIN`. No hay secretos en
 NEXT_PUBLIC, bundle ni almacenamiento del navegador. Sin caché de datos de gestión.
 
 `npm run build` y `npm start` ejecutan producción en el puerto 3001. Configurar
-`APP_ORIGIN` con el origen HTTPS real y `API_BASE_URL` con la API. Usar un único
-proceso Node.js: sesiones y límite de login están en memoria y se pierden al
-reiniciar. Para múltiples réplicas/serverless, migrar ambos a almacenamiento
-compartido antes de desplegar. HTTPS es necesario para las cookies de producción.
+`APP_ORIGIN` con el origen HTTPS real y `API_BASE_URL` con la API. Las sesiones
+se guardan en MySQL a través de los endpoints privados de server y se conservan
+entre instancias o reinicios del backoffice. El límite de intentos de login sigue
+siendo por proceso, no un límite global entre réplicas. HTTPS es necesario para
+las cookies de producción.
 No hace falta ampliar CORS en NestJS porque la conexión es servidor a servidor.
+
+Antes de publicar este backoffice, desplegar server con los endpoints
+`POST /api/management/sessions`, `/lookup` y `/revoke`, y aplicar su migración
+`004_admin_sessions.sql` mediante el migrador. Si Render usa
+`node scripts/migrate.mjs && npm run start:prod`, la aplica al arrancar.
+Ambas aplicaciones deben compartir MANAGEMENT_API_KEY. La cookie mantiene
+firma HMAC, HttpOnly, SameSite y expiración absoluta de ocho horas; solo se envía
+a server el hash SHA-256 del identificador. Cerrar sesión revoca ese hash en
+la base antes de borrar la cookie. Las cookies del almacenamiento anterior
+requieren volver a iniciar sesión una vez. Si la API de sesiones falla, el
+backoffice no crea una cookie ni concede acceso.
+
+`npm run test:sessions` construye producción y levanta dos procesos Next locales
+con credenciales ficticias y una API de prueba compartida. Comprueba login en
+una instancia, acceso en otra, rechazo de cookies alteradas, revocación cruzada
+y fallo seguro si no se puede guardar la sesión. Usa los puertos 3301, 3302 y
+4401; no conecta a Aiven. Complementa las pruebas de los endpoints de server.
 
 La paginación y búsqueda son en memoria. Para grandes volúmenes, agregar paginación
 y filtros administrativos en API antes de cargar todo el catálogo. Los turnos de

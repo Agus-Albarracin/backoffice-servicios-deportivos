@@ -1,16 +1,16 @@
 import 'server-only';
-import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { configurationIssues } from './auth-config';
+import { upstream } from './api';
 
 export const cookieName = 'turnero_admin';
 export const sessionSeconds = 8 * 60 * 60;
 const authGlobal = globalThis as typeof globalThis & { turneroAuth?: {
-  sessions: Map<string, { username: string; expires: number }>;
   attempts: Map<string, { count: number; until: number }>;
 } };
-const state = authGlobal.turneroAuth ??= { sessions: new Map(), attempts: new Map() };
-const { sessions, attempts } = state;
+const state = authGlobal.turneroAuth ??= { attempts: new Map() };
+const { attempts } = state;
 
 function secret() {
   const value = process.env.SESSION_SECRET;
@@ -35,26 +35,33 @@ export function allowAttempt() {
   entry.count++;
   return entry.count <= 10;
 }
-export function createSession(username: string) {
-  const now = Date.now();
-  for (const [id, item] of sessions) if (item.expires <= now) sessions.delete(id);
-  if (sessions.size >= 1000) sessions.delete(sessions.keys().next().value!);
+function tokenHash(id: string) { return createHash('sha256').update(id).digest('hex'); }
+export async function createSession(username: string) {
   const id = randomBytes(32).toString('hex');
-  sessions.set(id, { username, expires: now + sessionSeconds * 1000 });
-  return `${id}.${createHmac('sha256', secret()).update(id).digest('hex')}`;
+  const token = `${id}.${createHmac('sha256', secret()).update(id).digest('hex')}`;
+  const response = await upstream('management/sessions', { method: 'POST', body: JSON.stringify({ tokenHash: tokenHash(id), username }) });
+  if (!response.ok) throw new Error('No se pudo guardar la sesión administrativa.');
+  return token;
 }
 export async function getSession() {
   const token = (await cookies()).get(cookieName)?.value;
   if (!token || !configured()) return null;
+  if (!/^[a-f0-9]{64}\.[a-f0-9]{64}$/.test(token)) return null;
   const [id, signature] = token.split('.');
   if (!/^[a-f0-9]{64}$/.test(id) || !/^[a-f0-9]{64}$/.test(signature ?? '')) return null;
   const expected = createHmac('sha256', secret()).update(id).digest();
   if (!timingSafeEqual(expected, Buffer.from(signature, 'hex'))) return null;
-  const session = sessions.get(id);
-  if (!session || session.expires <= Date.now()) { sessions.delete(id); return null; }
-  return { ...session, id };
+  const response = await upstream('management/sessions/lookup', { method: 'POST', body: JSON.stringify({ tokenHash: tokenHash(id) }) });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error('No se pudo verificar la sesión administrativa.');
+  const session = await response.json();
+  if (!session || session.username !== process.env.ADMIN_USERNAME || typeof session.expiresAt !== 'number' || session.expiresAt <= Date.now()) return null;
+  return { username: session.username as string, expires: session.expiresAt as number, id };
 }
-export function revokeSession(id: string) { sessions.delete(id); }
+export async function revokeSession(id: string) {
+  const response = await upstream('management/sessions/revoke', { method: 'POST', body: JSON.stringify({ tokenHash: tokenHash(id) }) });
+  if (!response.ok) throw new Error('No se pudo revocar la sesión administrativa.');
+}
 export function sameOrigin(request: Request) {
   const configuredOrigin = process.env.APP_ORIGIN;
   if (!configuredOrigin) return false;
