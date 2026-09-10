@@ -11,7 +11,7 @@ export function RequestFilters({ value, data, change, clear }: { value: RequestF
     <legend>Filtrar solicitudes</legend>
     <div className="request-filter-fields">
       <label>Estado de solicitud<select value={value.state} onChange={event => update('state', event.target.value)}>
-        <option value="">Todos los estados</option><option value="PENDING_CONFIRMATION">Pendientes</option><option value="CONFIRMED">Confirmadas</option>
+        <option value="">Todos los estados</option><option value="PENDING">Pendientes</option><option value="RESERVATION_PAID">Pagó reserva</option><option value="TOTAL_PAID">Pagó total</option>
       </select></label>
       <label>Sede de solicitud<select value={value.venueId} onChange={event => update('venueId', event.target.value)}>
         <option value="">Todas las sedes</option>{data.venues.map(venue => <option key={venue.id} value={venue.id}>{String(venue.name)}</option>)}

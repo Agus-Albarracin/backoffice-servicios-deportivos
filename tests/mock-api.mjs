@@ -39,8 +39,17 @@ createServer(async (request, response) => {
   if (request.method === 'POST' && resource === 'booking-drafts' && url.pathname.endsWith('/confirm')) {
     const row = database[resource].find(row => row.id === id);
     if (!row) { response.writeHead(404); response.end('{}'); return; }
-    row.status = 'CONFIRMED'; row.confirmedAt = new Date().toISOString();
+    row.status = 'CONFIRMED'; row.confirmedAt ??= new Date().toISOString();
+    row.paymentStatus = row.totalPaidAt ? 'TOTAL_PAID' : 'RESERVATION_PAID';
     const slot = database.slots.find(slot => slot.id === row.slotId); if (slot) slot.status = 'RESERVED';
+    response.end(JSON.stringify(row)); return;
+  }
+  if (request.method === 'POST' && resource === 'booking-drafts' && url.pathname.endsWith('/total-payment')) {
+    const row = database[resource].find(row => row.id === id);
+    if (!row) { response.writeHead(404); response.end('{}'); return; }
+    if (row.status !== 'CONFIRMED') { response.writeHead(409); response.end('{"message":"Primero registrá el pago de la reserva."}'); return; }
+    row.totalPaidAt ??= new Date().toISOString();
+    row.paymentStatus = 'TOTAL_PAID';
     response.end(JSON.stringify(row)); return;
   }
   if (request.method === 'POST') {

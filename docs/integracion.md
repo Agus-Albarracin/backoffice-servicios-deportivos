@@ -32,7 +32,7 @@ Los PATCH rechazan campos extra y valores null. Cambiar deporte o zona puede inv
 
 `GET /management/{sports,zones,venues,venue-sports,slots,booking-drafts}` requiere clave y devuelve listas completas, incluidos registros inactivos. El panel pagina y filtra en memoria: en Solicitudes combina búsqueda, estado, sede, deporte y rango inclusivo de fechas del turno.
 
-`POST /booking-drafts/:id/confirm` requiere `X-API-Key`, solicitud completa y horario futuro disponible. Es atómico e idempotente: una segunda solicitud para el mismo turno recibe 409. La respuesta incluye `CONFIRMED` y `confirmedAt`; las solicitudes con turno incluyen `startsAt` y `endsAt`. Las confirmadas no se editan ni eliminan y su turno no se modifica.
+`POST /booking-drafts/:id/confirm` requiere `X-API-Key`, solicitud completa y horario futuro disponible. Es atómico e idempotente: una segunda solicitud para el mismo turno recibe 409. La respuesta incluye `CONFIRMED` y `confirmedAt`; las solicitudes con turno incluyen `startsAt` y `endsAt`. Los datos del alquiler confirmado no se editan ni eliminan y su turno no se modifica; el registro posterior de pago total usa la acción administrativa específica descrita al final.
 
 WhatsApp prepara un enlace: no envía mensajes ni ocupa horarios. Mostrar pendiente hasta que exista confirmación real. La respuesta de WhatsApp contiene deporte, sede, turno y contacto; `summary.venue` no incluye necesariamente `mapUrl`.
 
@@ -59,3 +59,27 @@ Calendario, disponibilidad y datos administrativos sensibles usan `Cache-Control
 - Backoffice: `npm run lint`, `npm run typecheck`, `npm test`.
 
 Las pruebas usan fixtures o memoria; no demuestran despliegue ni conectividad de producción. Swagger tiene 48 operaciones documentadas. Revisar DTOs y servicios al cambiar contratos.
+
+
+## Registro de pagos externos (PLAN-PAY-01)
+
+Implementado en ramas `feat/pagos-externos-solicitudes`, pendiente de integración
+y despliegue. En Solicitudes, «Confirmada» se reemplaza por «Pagó reserva». La
+acción «Registrar pago de reserva» usa POST /booking-drafts/:id/confirm y conserva
+sus validaciones e idempotencia. La equivalencia visual incluye confirmaciones
+preexistentes; no se infiere pago total ni evidencia bancaria.
+
+POST /booking-drafts/:id/total-payment requiere X-API-Key y una reserva confirmada
+(409 si falta). Devuelve 200, es idempotente y acepta turnos pasados o cerrados.
+No modifica disponibilidad, contacto ni horario. El backoffice lo expone por su
+proxy autenticado y con validación de origen, tras confirmar recepción externa.
+
+La respuesta de solicitud conserva status CONFIRMED y confirmedAt y agrega
+paymentStatus (PENDING, RESERVATION_PAID o TOTAL_PAID); totalPaidAt aparece solo
+para el total y representa la fecha del primer registro administrativo, no del
+pago bancario. PATCH no permite escribir esos campos. No se habilitan edición
+general, eliminación, reversiones, montos ni procesamiento de cobros.
+
+Aplicar 005_reservation_payments.sql antes del backend y luego desplegar
+backoffice. La disponibilidad pública mantiene AVAILABLE/RESERVED sin campos de
+pago. El cliente público no necesita cambios.
