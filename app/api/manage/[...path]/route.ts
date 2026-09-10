@@ -8,7 +8,7 @@ async function handle(request: Request, context: { params: Promise<{ path: strin
   if (!(await getSession())) return error('La sesión venció. Volvé a ingresar.', 401);
   if (request.method !== 'GET' && !sameOrigin(request)) return error('Origen no permitido.', 403);
   const { path } = await context.params;
-  if (path.length === 3 && path[0] === 'booking-drafts' && uuid.test(path[1]) && path[2] === 'confirm') {
+  if (path.length === 3 && path[0] === 'booking-drafts' && uuid.test(path[1]) && ['confirm', 'total-payment'].includes(path[2])) {
     if (request.method !== 'POST') return error('Operación inválida.', 405);
     try { return await managementResponse(await upstream(path.join('/'), { method: 'POST' }), false); }
     catch { return error('No se pudo conectar con la API.', 503); }

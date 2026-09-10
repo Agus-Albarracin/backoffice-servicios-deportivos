@@ -76,7 +76,7 @@ dependencias; no copiar los controllers dentro de la aplicación Next.js.
   guardados; el formulario informa esa restricción. Cambios de selección pueden
   invalidar sede/turno conforme a la API.
 - El servidor rechaza eliminaciones con dependencias. No hay borrado en cascada.
-- Los borradores quedan pendientes hasta usar Confirmar turno en el panel. La API reserva el horario; el panel no envía mensajes automáticamente.
+- Los borradores quedan pendientes hasta usar Registrar pago de reserva en el panel. La API reserva el horario; el panel no envía mensajes automáticamente.
 
 ## Acceso y despliegue
 
@@ -137,8 +137,8 @@ relaciones y horarios. No toca MySQL. Requiere Chromium de Playwright instalado
 En `server/`, `npm run test:e2e` verifica el contrato HTTP real con repositorio en
 memoria, incluidos guard, registros inactivos, turnos bloqueados y Swagger de los
 seis nuevos endpoints. `npm test` y `npm run lint` completan los controles del backend.
-## Confirmación de solicitudes
+## Pago de reserva y pago total
 
-En **Solicitudes** se muestran fecha, horario de inicio y fin en Buenos Aires y estado. **Confirmar turno** requiere contacto y horario elegidos; la API vuelve a validar disponibilidad y reserva el turno. Una solicitud confirmada no se puede editar ni eliminar. Generar WhatsApp conserva el estado pendiente.
+En **Solicitudes** se muestran fecha, horario de inicio y fin en Buenos Aires y estado. **Registrar pago de reserva** requiere contacto y horario elegidos; la API vuelve a validar disponibilidad y reserva el turno. La solicitud pasa a «Pagó reserva». **Registrar pago total** permite pasarla a «Pagó total» después de recibir el pago externo, incluso si el turno ya pasó. Los datos de la solicitud confirmada no se pueden editar ni eliminar. Generar WhatsApp conserva el estado pendiente.
 
-La API requiere la migración `003_reservations.sql`. El client muestra los horarios reservados en ámbar, sin permitir seleccionarlos. Los cierres de días no cancelan reservas confirmadas.
+La API requiere las migraciones `003_reservations.sql` y `005_reservation_payments.sql`. Aplicar la nueva migración y desplegar server antes que backoffice. El estado técnico CONFIRMED se conserva; `paymentStatus` distingue PENDING, RESERVATION_PAID y TOTAL_PAID. `totalPaidAt` registra cuándo el administrador marcó el total. Los reintentos no duplican el pago y ambos estados mantienen el turno ocupado. La plataforma registra pagos externos; no procesa cobros. Los filtros de Solicitudes incluyen Pendientes, Pagó reserva y Pagó total. El client muestra los horarios reservados en ámbar, sin permitir seleccionarlos. Los cierres de días no cancelan reservas confirmadas.
